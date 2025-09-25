@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  document-search-github:
+    build:
+      context: .
+      dockerfile: Dockerfile.github
+    container_name: vpbank-document-search-github
+    ports:
+      - "8502:8501"  # Different port to avoid conflicts
+    volumes:
+      # Mount embeddings and models as read-only
+      - ./embeddings_github:/app/embeddings_github:ro
+      - ./local_models:/app/local_models:ro
+      - ./document:/app/document:ro
+    environment:
+      # GitHub-only mode settings
+      - TRANSFORMERS_OFFLINE=1
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_CACHE=/app/cache
+      - HF_HOME=/app/cache
+      # Streamlit settings
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+      - STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - document-search-network-github
+
+networks:
+  document-search-network-github:
+    driver: bridge

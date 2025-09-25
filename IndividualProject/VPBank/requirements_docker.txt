@@ -1,0 +1,19 @@
+# Requirements for Docker deployment (GitHub-only environment)
+streamlit==1.50.0
+torch==2.8.0
+transformers==4.56.2
+# sentence-transformers==5.1.1  # Removed - not available via GitHub
+numpy==2.3.3
+pandas==2.3.2
+scikit-learn==1.7.2
+plotly==6.3.0
+Pillow==11.3.0
+
+# Additional dependencies for offline functionality
+safetensors==0.6.2
+tokenizers==0.22.1
+huggingface-hub==0.35.1
+
+# System utilities
+requests==2.32.5
+PyPDF2==3.0.1
