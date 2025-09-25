@@ -1,7 +1,13 @@
 """
 Streamlit App for Document Search - GITHUB-ONLY VERSION
 Uses custom embedder instead of sentence-transformers
-Perfect for environments that can only pull code from GitHub
+Perfect for environments that can only pull code from     def __init__(self):
+        self.embeddings_dir = "/app/embeddings" if os.path.exists("/app/embeddings") else "./embeddings"
+        self.local_model_path = "/app/local_models/sentence-transformer" if os.path.exists("/app/local_models") else "./local_models/sentence-transformer"
+        self.model = None
+        self.documents = {}
+        self.is_initialized = False
+        self.similarity_calculator = MultiSimilarityCalculator()
 """
 
 import streamlit as st
@@ -13,12 +19,14 @@ import sys
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 import warnings
+import pandas as pd
 
 # Add current directory to path for custom imports
 sys.path.append('.')
 
-# Import custom embedder
-from custom_embedder import SentenceTransformer  # Drop-in replacement
+# Import custom embedder and similarity methods
+from custom_embedder import CustomSentenceEmbedder  # Custom embedder
+from similarity_methods import MultiSimilarityCalculator
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
@@ -109,6 +117,55 @@ st.markdown("""
         display: inline-block;
         margin-bottom: 1rem;
     }
+    
+    .method-comparison {
+        margin: 2rem 0;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .method-header {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #e0e0e0;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .method-results {
+        padding: 1rem;
+    }
+    
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .comparison-table th, .comparison-table td {
+        padding: 0.8rem;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .comparison-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .method-score {
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: white;
+    }
+    
+    .score-high { background: #28a745; }
+    .score-medium { background: #ffc107; color: #333; }
+    .score-low { background: #dc3545; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -117,10 +174,11 @@ class GitHubOnlyVectorSearchEngine:
     
     def __init__(self):
         self.embeddings_dir = "/app/embeddings" if os.path.exists("/app/embeddings") else "./embeddings"
-        self.local_model_path = "/app/local_models/custom-sentence-transformer" if os.path.exists("/app/local_models") else "./local_models/custom-sentence-transformer"
+        self.local_model_path = "/app/local_models/sentence-transformer" if os.path.exists("/app/local_models") else "./local_models/sentence-transformer"
         self.model = None
         self.documents = {}
         self.is_initialized = False
+        self.similarity_calculator = MultiSimilarityCalculator()
         
     def _load_model_and_data(self):
         """Load custom model and document data"""
@@ -131,10 +189,10 @@ class GitHubOnlyVectorSearchEngine:
             # Load custom model
             if os.path.exists(self.local_model_path):
                 st.info("🚀 Loading custom embedder from local path...")
-                model = SentenceTransformer(self.local_model_path)
+                model = CustomSentenceEmbedder(self.local_model_path)
             else:
                 st.info("🚀 Loading custom embedder from Hugging Face...")
-                model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+                model = CustomSentenceEmbedder("sentence-transformers/all-MiniLM-L6-v2")
             
             # Load document data
             documents = {}
@@ -187,18 +245,22 @@ class GitHubOnlyVectorSearchEngine:
         start_time = time.time()
         
         if not self.is_initialized:
+            st.info("🔧 Initializing search engine for first time...")
             model, documents = self._load_model_and_data()
             if not model or not documents:
                 return [], 0.0
         
         try:
             # Embed query using custom embedder
+            st.info(f"🧮 Encoding query: '{query[:50]}...'")
             query_embedding = self.model.encode([query])
             
             results = []
             
             # Search through all documents
+            st.info("🔍 Searching through documents...")
             for doc_name, doc_data in self.documents.items():
+                st.info(f"📄 Searching in {doc_name}...")
                 embeddings = doc_data['embeddings']
                 chunks = doc_data['chunks']
                 
@@ -226,6 +288,45 @@ class GitHubOnlyVectorSearchEngine:
         except Exception as e:
             st.error(f"Search error: {str(e)}")
             return [], 0.0
+    
+    def search_with_multiple_methods(self, query, top_k=5):
+        """Search using multiple similarity methods for comparison"""
+        start_time = time.time()
+        
+        if not self.is_initialized:
+            st.info("🔧 Initializing search engine for comparison...")
+            model, documents = self._load_model_and_data()
+            if not model or not documents:
+                return {}, 0.0
+        
+        try:
+            # Embed query using custom embedder
+            st.info(f"🧮 Encoding query for multi-method comparison: '{query[:50]}...'")
+            query_embedding = self.model.encode([query])[0]  # Get single vector
+            
+            all_results = {}
+            
+            # Search through all documents
+            for doc_name, doc_data in self.documents.items():
+                st.info(f"📄 Multi-method search in {doc_name}...")
+                embeddings = doc_data['embeddings']
+                chunks = doc_data['chunks']
+                
+                # Use multi-similarity calculator
+                comparison_results = self.similarity_calculator.compare_methods(
+                    query_embedding, embeddings, chunks, top_k
+                )
+                
+                # Add document info to results
+                comparison_results['document'] = doc_name
+                all_results[doc_name] = comparison_results
+            
+            search_time = time.time() - start_time
+            return all_results, search_time
+            
+        except Exception as e:
+            st.error(f"Multi-method search error: {str(e)}")
+            return {}, 0.0
     
     def get_stats(self):
         """Get database statistics"""
@@ -270,6 +371,12 @@ def main():
         help="Search through banking documents using custom AI embedder"
     )
     
+    # Search options
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        comparison_mode = st.checkbox("🔬 Multi-Method Comparison", 
+                                    help="Compare results from different similarity methods")
+    
     # Search button
     col1, col2, col3 = st.columns([2, 1, 2])
     with col2:
@@ -279,10 +386,97 @@ def main():
     
     # Perform search
     if search_clicked and query.strip():
-        with st.spinner('🔍 Searching with custom embedder...'):
-            results, search_time = search_engine.search(query, top_k=5)
+        # Show search info
+        search_info = st.empty()
+        search_info.info(f"🔍 Starting {'multi-method comparison' if comparison_mode else 'standard'} search for: **{query}**")
         
-        if results:
+        with st.spinner('🤖 Processing with custom embedder... Please wait...'):
+            # Add some feedback during search
+            progress = st.progress(0)
+            progress.progress(25, text="Loading embedder...")
+            
+            if comparison_mode:
+                results, search_time = search_engine.search_with_multiple_methods(query, top_k=5)
+                progress.progress(100, text="Multi-method comparison completed!")
+            else:
+                results, search_time = search_engine.search(query, top_k=5)
+                progress.progress(100, text="Search completed!")
+        
+        # Clear progress bar
+        progress.empty()
+        search_info.empty()
+        
+        if comparison_mode and results:
+            # Display multi-method comparison results
+            st.markdown(f'<div class="response-time">⚡ Multi-method comparison completed in {search_time:.3f} seconds</div>', 
+                       unsafe_allow_html=True)
+            
+            # Create tabs for each document
+            doc_tabs = st.tabs([f"📄 {doc_name.replace('-', ' ').title()}" for doc_name in results.keys()])
+            
+            for idx, (doc_name, doc_results) in enumerate(results.items()):
+                with doc_tabs[idx]:
+                    st.markdown(f"## 🔬 Method Comparison - {doc_name.replace('-', ' ').title()}")
+                    
+                    # Show timing information
+                    timing_info = doc_results.get('timing', {})
+                    if timing_info:
+                        st.markdown("### ⏱️ Performance by Method:")
+                        timing_cols = st.columns(len(timing_info))
+                        for i, (method, time_val) in enumerate(timing_info.items()):
+                            timing_cols[i].metric(method.title(), f"{time_val:.4f}s")
+                    
+                    # Show descriptions
+                    descriptions = doc_results.get('descriptions', {})
+                    if descriptions:
+                        with st.expander("ℹ️ Method Descriptions"):
+                            for method, desc in descriptions.items():
+                                st.write(f"**{method.title()}**: {desc}")
+                    
+                    # Display comparison results
+                    methods = doc_results.get('methods', {})
+                    if methods:
+                        # Create tabs for each method
+                        method_tabs = st.tabs([f"{method.title()}" for method in methods.keys()])
+                        
+                        for method_idx, (method_name, method_results) in enumerate(methods.items()):
+                            with method_tabs[method_idx]:
+                                st.markdown(f"#### {method_name.title()} Results")
+                                
+                                for result in method_results[:3]:  # Show top 3
+                                    score_class = "score-high" if result['score'] > 0.7 else "score-medium" if result['score'] > 0.4 else "score-low"
+                                    
+                                    result_html = f'''
+                                    <div class="result-card">
+                                        <div class="result-title">#{result['rank']} - {doc_name.replace('-', ' ').title()}</div>
+                                        <div class="result-meta">
+                                            📍 Index: {result['index']} | 
+                                            <span class="method-score {score_class}">Score: {result['score']:.4f}</span>
+                                        </div>
+                                        <div class="result-preview">{result['preview']}</div>
+                                    </div>
+                                    '''
+                                    st.markdown(result_html, unsafe_allow_html=True)
+                        
+                        # Summary comparison table
+                        st.markdown("### 📊 Summary Comparison")
+                        summary_data = []
+                        for method_name, method_results in methods.items():
+                            if method_results:
+                                avg_score = sum(r['score'] for r in method_results) / len(method_results)
+                                max_score = max(r['score'] for r in method_results)
+                                summary_data.append({
+                                    'Method': method_name.title(),
+                                    'Avg Score': f"{avg_score:.4f}",
+                                    'Max Score': f"{max_score:.4f}",
+                                    'Results': len(method_results)
+                                })
+                        
+                        if summary_data:
+                            df = pd.DataFrame(summary_data)
+                            st.dataframe(df, use_container_width=True)
+        
+        elif not comparison_mode and results:
             # Display response time
             st.markdown(f'<div class="response-time">⚡ Found {len(results)} results in {search_time:.3f} seconds (Custom Embedder)</div>', 
                        unsafe_allow_html=True)

@@ -38,17 +38,67 @@ class CustomSentenceEmbedder:
         try:
             print(f"Loading tokenizer and model: {self.model_name}")
             
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
-                local_files_only=False  # Set to True for completely offline
-            )
+            # Check if offline mode is enabled
+            offline_mode = os.getenv('TRANSFORMERS_OFFLINE', '0') == '1' or os.getenv('HF_HUB_OFFLINE', '0') == '1'
             
-            # Load model
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                local_files_only=False  # Set to True for completely offline
-            )
+            # Try local paths first
+            local_paths = [
+                "/app/local_models/sentence-transformer",
+                "./local_models/sentence-transformer", 
+                "./local_models/custom-sentence-transformer",
+                "/app/local_models/custom-sentence-transformer"
+            ]
+            
+            model_loaded = False
+            
+            # Try loading from local paths first
+            for local_path in local_paths:
+                if os.path.exists(local_path):
+                    try:
+                        print(f"🔧 Attempting to load from local path: {local_path}")
+                        
+                        # Load tokenizer
+                        self.tokenizer = AutoTokenizer.from_pretrained(
+                            local_path,
+                            local_files_only=True
+                        )
+                        
+                        # Load model
+                        self.model = AutoModel.from_pretrained(
+                            local_path,
+                            local_files_only=True
+                        )
+                        
+                        print(f"✅ Successfully loaded from local path: {local_path}")
+                        model_loaded = True
+                        break
+                        
+                    except Exception as local_e:
+                        print(f"⚠️  Failed to load from {local_path}: {str(local_e)}")
+                        continue
+            
+            # If local loading failed and not in offline mode, try Hugging Face
+            if not model_loaded and not offline_mode:
+                print(f"🌐 Loading from Hugging Face: {self.model_name}")
+                
+                # Load tokenizer
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_name,
+                    local_files_only=False
+                )
+                
+                # Load model
+                self.model = AutoModel.from_pretrained(
+                    self.model_name,
+                    local_files_only=False
+                )
+                
+                model_loaded = True
+                print(f"✅ Successfully loaded from Hugging Face")
+            
+            # If still not loaded, raise error
+            if not model_loaded:
+                raise Exception("Could not load model from any source (local or remote)")
             
             # Move model to device
             self.model.to(self.device)
