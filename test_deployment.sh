@@ -26,10 +26,10 @@ else
     exit 1
 fi
 
-if [ -f "streamlit_app_offline.py" ]; then
-    echo "✅ streamlit_app_offline.py found"
+if [ -f "main_app.py" ]; then
+    echo "✅ main_app.py found"
 else
-    echo "❌ streamlit_app_offline.py not found"
+    echo "❌ main_app.py not found"
     exit 1
 fi
 
@@ -51,14 +51,14 @@ fi
 
 echo ""
 echo "🐳 Testing Docker build..."
-docker build -f Dockerfile.github -t vpbank-offline-test . > /dev/null 2>&1
+docker build -f Dockerfile.github -t vpbank-corporate-test . > /dev/null 2>&1
 
 if [ $? -eq 0 ]; then
     echo "✅ Docker build successful"
     
     echo ""
     echo "🚀 Testing Docker run..."
-    docker run -d --name vpbank-test-offline -p 8503:8501 vpbank-offline-test > /dev/null 2>&1
+    docker run -d --name vpbank-test-corporate -p 8503:8501 vpbank-corporate-test > /dev/null 2>&1
     
     if [ $? -eq 0 ]; then
         echo "✅ Docker container started"
@@ -78,8 +78,8 @@ if [ $? -eq 0 ]; then
         
         echo ""
         echo "🧹 Cleaning up test container..."
-        docker stop vpbank-test-offline > /dev/null 2>&1
-        docker rm vpbank-test-offline > /dev/null 2>&1
+        docker stop vpbank-test-corporate > /dev/null 2>&1
+        docker rm vpbank-test-corporate > /dev/null 2>&1
         echo "✅ Test container removed"
         
     else
@@ -88,7 +88,7 @@ if [ $? -eq 0 ]; then
     fi
     
     # Clean up test image
-    docker rmi vpbank-offline-test > /dev/null 2>&1
+    docker rmi vpbank-corporate-test > /dev/null 2>&1
     
 else
     echo "❌ Docker build failed"

@@ -1,7 +1,0 @@
-{
-  "document_name": "UCP600-1",
-  "num_chunks": 184,
-  "embedding_dimension": 384,
-  "model_used": "Custom Embedder (GitHub-only)",
-  "total_embeddings": 184
-}

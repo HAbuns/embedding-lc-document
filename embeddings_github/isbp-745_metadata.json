@@ -1,7 +1,0 @@
-{
-  "document_name": "isbp-745",
-  "num_chunks": 425,
-  "embedding_dimension": 384,
-  "model_used": "Custom Embedder (GitHub-only)",
-  "total_embeddings": 425
-}

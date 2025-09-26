@@ -1,11 +1,11 @@
 services:
-  document-search-offline:
+  vpbank-search-corporate:
     build:
       context: .
       dockerfile: Dockerfile.github
-    container_name: vpbank-document-search-offline
+    container_name: vpbank-corporate-search
     ports:
-      - "8502:8501"  # Different port to avoid conflicts
+      - "8502:8501"
     volumes:
       # Mount embeddings and documents as read-only
       - ./embeddings:/app/embeddings:ro
@@ -27,8 +27,8 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - document-search-network-offline
+      - vpbank-corporate-network
 
 networks:
-  document-search-network-offline:
+  vpbank-corporate-network:
     driver: bridge
