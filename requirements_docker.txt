@@ -1,21 +1,10 @@
-# Minimal requirements for Corporate/Offline environment
-# NO transformers, NO huggingface-hub, NO torch - maximum compatibility
-streamlit==1.50.0
-# torch==2.8.0  # Removed - too heavy and blocked in corporate
-# transformers==4.56.2  # Removed - blocked by corporate firewall
-# sentence-transformers==5.1.1  # Removed - not available via GitHub
-numpy==2.3.3
-pandas==2.3.2
-scikit-learn==1.7.2  # For TF-IDF vectorization only
-# scipy==1.13.0  # Removed - build issues in Docker
-plotly==6.3.0
-Pillow==11.3.0
-
-# NO external model loading dependencies
-# safetensors==0.6.2  # Removed - not needed
-# tokenizers==0.22.1  # Removed - not needed  
-# huggingface-hub==0.35.1  # Removed - blocked by corporate firewall
-
-# System utilities
-requests==2.32.5
-PyPDF2==3.0.1
+# Ultra-minimal requirements for Corporate environments
+# Compatible with restricted networks and corporate proxies
+streamlit
+numpy
+pandas
+scikit-learn
+plotly
+Pillow
+requests
+PyPDF2

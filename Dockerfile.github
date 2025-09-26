@@ -1,8 +1,8 @@
 # Dockerfile for Corporate/Offline Streamlit Document Search App
-# NO transformers, NO huggingface-hub - fully offline operation
-# Perfect for corporate environments with restricted internet access
+# Optimized for corporate networks with proxy/firewall restrictions
+# Ultra-minimal dependencies for maximum compatibility
 
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -12,19 +12,29 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TRANSFORMERS_OFFLINE=1 \
     HF_HUB_OFFLINE=1 \
-    OFFLINE_MODE=1
+    OFFLINE_MODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies with corporate network compatibility
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copy requirements for offline environment (NO transformers/huggingface)
+# Copy requirements for offline environment (NO AI libraries)
 COPY requirements_docker.txt .
 
-# Install Python dependencies (minimal set - no AI libraries)
-RUN pip install --no-cache-dir -r requirements_docker.txt
+# Install Python dependencies with corporate network handling
+# Use multiple strategies for corporate environments
+RUN pip install --no-cache-dir --timeout=1000 --retries=5 \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org \
+    -r requirements_docker.txt || \
+    pip install --no-cache-dir --no-deps \
+    streamlit numpy pandas scikit-learn plotly Pillow requests PyPDF2
 
 # Create necessary directories
 RUN mkdir -p /app/embeddings /app/documents

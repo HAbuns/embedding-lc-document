@@ -168,17 +168,39 @@ docker-compose -f docker-compose.github.yml up --build
 open http://localhost:8502
 ```
 
-### Option 2: Local Development
+**Corporate Network Issues?** 
+```bash
+# Run debug script to identify and fix build issues
+./debug_docker_build.sh
+
+# If behind corporate proxy:
+export HTTP_PROXY=http://your-proxy:port
+export HTTPS_PROXY=http://your-proxy:port
+docker build --build-arg HTTP_PROXY --build-arg HTTPS_PROXY -f Dockerfile.github .
+```
+
+### Option 2: Local Development (Corporate Friendly)
 ```bash
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install minimal dependencies
-pip install streamlit numpy pandas scikit-learn plotly requests PyPDF2 Pillow
+# Install minimal dependencies (works behind corporate firewall)
+pip install --trusted-host pypi.org --trusted-host pypi.python.org streamlit numpy pandas scikit-learn plotly
 
 # Run application
 streamlit run main_app.py
+```
+
+### Option 3: Corporate IT Pre-deployment
+```bash
+# For IT teams: Build offline-capable image
+docker build -t vpbank-corporate -f Dockerfile.github .
+docker save vpbank-corporate > vpbank-corporate.tar
+
+# Deploy on restricted machines:
+docker load < vpbank-corporate.tar
+docker run -p 8502:8501 vpbank-corporate
 ```
 
 ## 🧪 Testing & Validation
@@ -226,7 +248,36 @@ services:
 
 ## 🔧 Troubleshooting
 
-### Common Issues
+### Corporate Docker Build Issues
+
+**Problem: `failed to solve: process "/bin/sh -c pip install" did not complete successfully`**
+
+**Solutions:**
+1. **Run diagnostic tool:**
+   ```bash
+   ./debug_docker_build.sh
+   ```
+
+2. **Corporate proxy setup:**
+   ```bash
+   export HTTP_PROXY=http://proxy.company.com:8080
+   export HTTPS_PROXY=http://proxy.company.com:8080
+   docker build --build-arg HTTP_PROXY --build-arg HTTPS_PROXY .
+   ```
+
+3. **Use fallback Dockerfile:**
+   ```bash
+   docker build -f Dockerfile.corporate-fallback -t vpbank-corporate .
+   ```
+
+4. **Skip Docker, use local Python:**
+   ```bash
+   python3 -m venv venv && source venv/bin/activate
+   pip install --trusted-host pypi.org streamlit numpy pandas scikit-learn
+   streamlit run main_app.py
+   ```
+
+### Common Corporate Issues
 
 **Corporate Firewall Issues**
 - ✅ This system works completely offline
@@ -234,13 +285,17 @@ services:
 - ✅ All dependencies pre-installed in Docker
 - ✅ No model downloads needed
 
-**No Search Results**
+**Network Proxy Issues**
 ```bash
-# Check document files
-ls -la document/ embeddings/
+# Configure pip for corporate proxy
+pip config set global.proxy http://proxy.company.com:8080
+pip config set global.trusted-host "pypi.org pypi.python.org files.pythonhosted.org"
+```
 
-# Test search engine
-python3 -c "from pure_offline_search import PureOfflineSearch; PureOfflineSearch()"
+**SSL Certificate Issues**
+```bash
+# Disable SSL verification (if approved by IT)
+pip install --trusted-host pypi.org --trusted-host pypi.python.org <package>
 ```
 
 ## 📄 License

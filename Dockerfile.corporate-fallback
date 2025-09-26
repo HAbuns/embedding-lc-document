@@ -1,0 +1,53 @@
+# Ultra-simple Dockerfile for highly restricted corporate environments
+# Fallback option when standard Docker build fails
+# Uses only pre-installed Python packages where possible
+
+FROM python:3.11-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    OFFLINE_MODE=1
+
+# Install system dependencies - minimal set
+RUN apk add --no-cache gcc musl-dev
+
+# Try to install packages one by one to identify issues
+RUN pip install --no-cache-dir streamlit || echo "streamlit failed"
+RUN pip install --no-cache-dir numpy || echo "numpy failed" 
+RUN pip install --no-cache-dir pandas || echo "pandas failed"
+RUN pip install --no-cache-dir scikit-learn || echo "scikit-learn failed"
+RUN pip install --no-cache-dir plotly || echo "plotly failed"
+RUN pip install --no-cache-dir Pillow || echo "Pillow failed"
+RUN pip install --no-cache-dir requests || echo "requests failed"
+RUN pip install --no-cache-dir PyPDF2 || echo "PyPDF2 failed"
+
+# Create necessary directories
+RUN mkdir -p /app/embeddings /app/documents
+
+# Copy application code
+COPY pure_offline_search.py .
+COPY main_app.py .
+COPY similarity_methods.py .
+COPY embeddings/ ./embeddings/
+COPY document/ ./document/
+
+# Copy other files
+COPY *.py ./
+
+# Create non-root user for security
+RUN adduser -D app && chown -R app:app /app
+USER app
+
+# Expose Streamlit port
+EXPOSE 8501
+
+# Simple health check
+HEALTHCHECK --interval=60s --timeout=30s --start-period=10s --retries=2 \
+    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+
+# Run the application
+CMD ["python", "-m", "streamlit", "run", "main_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
